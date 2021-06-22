@@ -734,6 +734,10 @@ module Rodauth
       end
     end
 
+    def internal_request?
+      false
+    end
+
     def set_session_value(key, value)
       session[key] = value
     end

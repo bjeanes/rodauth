@@ -1,0 +1,144 @@
+= Documentation for Internal Request Feature
+
+The internal request feature allows interacting with Rodauth by
+calling methods, and is expected to be used mostly for administrative
+purposes.  It allows for things like an changing a login or password
+for an existing user, without requiring that the user login to the
+system. The reason the feature is named +internal_request+ is that
+it internally submits requests to Rodauth, which are handled almost
+identically to how actual web requests will be handled by Rodauth.
+
+The general form of calling these methods is:
+
+  App.rodauth.internal_request_method(hash)
+
+Where +App+ is the Roda class, and +internal_request_method+ is the
+method you are calling.  For example:
+
+  App.rodauth.change_password(account_id: 1, password: 'foobar')
+
+Will change the password for the account with id 1 to +foobar+.
+
+All internal request methods support the following options.  For
+internal requests that require an existing account, you should
+generally use one of the two following options:
+
+:account_id :: The id of the account to be considered as logged in when the internal request is submitted (most internal requests require a login). This value is assumed to an existing account, and is not checked.
+:account_login :: The login of the account to be considered as logged in when the internal request is submitted (most internal requests require a login). This will query the database to determine the account's id before submitting the request. If there is no non-closed account for the login, this will raise an exception.
+
+There are additional options available, that you should only use
+if you have special requirements:
+
+:authenticated_by :: The array of strings to use for how the internal request's session was authenticated.
+:env :: A hash for the environment to use.
+:session :: A hash for the session to use.
+
+All remaining options are considered parameters. Using the
+previous example:
+
+  App.rodauth.change_password(account_id: 1, password: 'foobar')
+
+The <tt>password: 'foobar'</tt> part means that the parameters
+for the request will be <tt>{rodauth.password_param => 'foobar'}</tt>,
+where +rodauth.password_param+ is the value of +password_param+ in
+your Rodauth configuration (this defaults to <tt>"password"</tt>).
+
+Passing any options that are not valid Rodauth parameters will
+result in a warning.
+
+== Configuration
+
+In general, the configuration for internal requests is almost
+the same as for regular requests.  There are some minor changes
+for easier usability.  +modifications_require_password?+,
++require_login_confirmation?+, and +require_password_confirmation?+
+are set to false. In general, the caller of the method should not
+be able to determine the user's password, and there is no point
+in requiring parameter confirmation when calling the method
+directly.
+
+You can override the configuration for internal requests by using
+the +internal_request_configuration+ configuration method. For
+example, you can set the minimum length for logins to be 15
+for normal requests, but only 3 for internal requests:
+
+  plugin :rodauth do
+    enable :create_account, :internal_request
+    login_minimum_length 15
+
+    internal_request_configuration do
+      login_minimum_length 3
+    end
+  end
+
+Another approach for doing this is to call the +internal_request?+
+method inside configuration method blocks:
+
+  plugin :rodauth do
+    enable :create_account, :internal_request
+    login_minimum_length{internal_request? ? 3 : 15}
+  end
+
+== Return Values and Exceptions
+
+Internal request methods ending in a question mark return true or false.
+
+Most other internal request methods return nil on success, and or raise a
+Rodauth::InternalRequestError exception on failure.  The exception
+message will be the {the reason for the failure}[rdoc-ref:doc/error_reasons.rdoc],
+as a string.
+
+If an internal request method returns a non-nil value on success,
+it will be documented in the section below.
+
+== Features
+
+This section documents the methods that are available for each
+feature. You must load that feature and the internal request
+feature in order to call the internal request methods for that
+feature.  Some features support multiple internal request
+methods, and each internal request method supported will be
+documented under the appropriate subheading.  If the method
+subheading states it it requires an account, you must pass
+the +:account_id+ or +account_login+ option when calling
+the method.
+
+=== Change Login
+
+==== change_login (requires account)
+
+The +change_login+ method changes the login for the account.
+
+The +:login+ option should be specified for the new login.
+Note that if the +:account_login+ option is specified, that
+is the current login for the account, not the new login.
+
+=== Change Password
+
+==== change_password (requires account)
+
+The +change_password+ method changes the password for the
+account.
+
+The +:password+ or +:new_password+ option should be
+specified for the new password.
+
+=== Close Account
+
+==== close_account (requires account)
+
+The +close_account+ method closes the account.  There
+is no method in Rodauth to reopen closed accounts.
+
+=== Create Account
+=== Email Auth
+=== Lockout
+=== Login
+=== OTP
+=== Recovery Codes
+=== Remember
+=== Reset Password
+=== SMS Codes
+=== Two Factor Base
+=== Verify Account
+=== Verify Login Change
