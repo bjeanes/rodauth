@@ -322,7 +322,7 @@ module Rodauth
       end
       internal_class.allocate.post_configure
 
-      ([:base] + klass.features).each do |feature_name|
+      ([:base] + internal_class.features).each do |feature_name|
         feature = FEATURES[feature_name]
         if meths = feature.internal_request_methods
           meths.each do |name|
