@@ -169,7 +169,11 @@ describe 'Rodauth' do
 
     base = Class.new(Rodauth::Auth) do
       configure do
-        enable :login, :path_class_methods
+        enable :login, :path_class_methods, :internal_request
+
+        internal_request_configuration do
+          login_page_title { "Base" }
+        end
       end
     end
 
@@ -177,6 +181,7 @@ describe 'Rodauth' do
       configure do
         enable :http_basic_auth
         login_route "signin"
+        login_page_title { "Auth 1" }
       end
     end
 
@@ -192,20 +197,23 @@ describe 'Rodauth' do
     app.plugin :rodauth, auth_class: auth1, name: :auth1
     app.plugin :rodauth, auth_class: auth2, name: :auth2
 
-    base.features.must_equal [:login, :path_class_methods]
+    base.features.must_equal [:login, :path_class_methods, :internal_request]
     base.login_path.must_equal "/login"
     base.routes.must_equal [:handle_login]
     base.route_hash.must_equal({ "/login" => :handle_login })
+    base.internal_request_eval { login_page_title }.must_equal("Base")
 
-    auth1.features.must_equal [:login, :path_class_methods, :http_basic_auth]
+    auth1.features.must_equal [:login, :path_class_methods, :internal_request, :http_basic_auth]
     auth1.login_path.must_equal "/signin"
     auth1.routes.must_equal [:handle_login]
     auth1.route_hash.must_equal({ "/signin" => :handle_login })
+    auth1.internal_request_eval { login_page_title }.must_equal("Auth 1")
 
-    auth2.features.must_equal [:login, :path_class_methods, :logout]
+    auth2.features.must_equal [:login, :path_class_methods, :internal_request, :logout]
     auth2.login_path.must_equal "/auth/login"
     auth2.routes.must_equal [:handle_login, :handle_logout]
     auth2.route_hash.must_equal({ "/login" => :handle_login, "/logout" => :handle_logout })
+    auth2.internal_request_eval { login_page_title }.must_equal("Base")
   end
 
   it "should allow setting Rodauth::Auth subclass with :auth_class option" do
@@ -844,7 +852,7 @@ describe 'Rodauth' do
     visit '/'
     page.html.must_include("Possible Authentication Methods: .")
     proc{auth.send(:account_ds, nil)}.must_raise ArgumentError
-    
+
     login
     page.html.must_include("Possible Authentication Methods: password.")
     auth.send(:password_hash_ds).get(:id).must_be_kind_of(ENV['RODAUTH_SPEC_UUID'] && DB.database_type == :postgres ? String : Integer)
